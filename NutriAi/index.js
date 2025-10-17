@@ -1,18 +1,26 @@
 import React, { useState } from "react";
 
-// Painel principal do NutriAI (substitui o antigo NutriAIMain)
+// Painel principal do NutriAI com nova aba Início
 function NutriAIMain() {
-  const [activeTab, setActiveTab] = useState("duvidas");
+  const [activeTab, setActiveTab] = useState("inicio");
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
       <header className="bg-white shadow-sm sticky top-0 z-20">
-        <div className="max-w-6xl mx-auto px-4 py-4 flex items-center justify-between">
-          <h1 className="text-xl font-semibold">NutriAI — Painel</h1>
-          <nav className="flex gap-2">
+        <div className="max-w-6xl mx-auto px-4 py-3 flex flex-col items-center">
+          <h1 className="text-lg font-semibold mb-2 text-center">NutriAI — Painel</h1>
+          <nav className="flex flex-wrap gap-2 justify-center">
+            <button
+              onClick={() => setActiveTab("inicio")}
+              className={`px-3 py-1 rounded-lg font-medium ${
+                activeTab === "inicio" ? "bg-slate-800 text-white" : "bg-transparent"
+              }`}
+            >
+              Início
+            </button>
             <button
               onClick={() => setActiveTab("duvidas")}
-              className={`px-4 py-2 rounded-lg font-medium ${
+              className={`px-3 py-1 rounded-lg font-medium ${
                 activeTab === "duvidas" ? "bg-slate-800 text-white" : "bg-transparent"
               }`}
             >
@@ -20,7 +28,7 @@ function NutriAIMain() {
             </button>
             <button
               onClick={() => setActiveTab("progresso")}
-              className={`px-4 py-2 rounded-lg font-medium ${
+              className={`px-3 py-1 rounded-lg font-medium ${
                 activeTab === "progresso" ? "bg-slate-800 text-white" : "bg-transparent"
               }`}
             >
@@ -28,7 +36,7 @@ function NutriAIMain() {
             </button>
             <button
               onClick={() => setActiveTab("informacoes")}
-              className={`px-4 py-2 rounded-lg font-medium ${
+              className={`px-3 py-1 rounded-lg font-medium ${
                 activeTab === "informacoes" ? "bg-slate-800 text-white" : "bg-transparent"
               }`}
             >
@@ -36,7 +44,7 @@ function NutriAIMain() {
             </button>
             <button
               onClick={() => setActiveTab("configuracoes")}
-              className={`px-4 py-2 rounded-lg font-medium ${
+              className={`px-3 py-1 rounded-lg font-medium ${
                 activeTab === "configuracoes" ? "bg-slate-800 text-white" : "bg-transparent"
               }`}
             >
@@ -47,6 +55,7 @@ function NutriAIMain() {
       </header>
 
       <main className="max-w-6xl mx-auto p-4">
+        {activeTab === "inicio" && <InicioPanel />}
         {activeTab === "duvidas" && <DuvidasPanel />}
         {activeTab === "progresso" && <ProgressoPanel />}
         {activeTab === "informacoes" && <InformacoesPanel />}
@@ -56,9 +65,48 @@ function NutriAIMain() {
       <footer className="max-w-6xl mx-auto p-4 text-sm text-slate-600">
         <div className="flex justify-between">
           <div>© {new Date().getFullYear()} NutriAI</div>
-          <div>Feito com ♥ — cuide bem da sua saúde</div>
         </div>
       </footer>
+    </div>
+  );
+}
+
+function InicioPanel() {
+  return (
+    <div className="bg-white rounded-2xl shadow p-6">
+      <div className="flex flex-col items-center">
+        <img
+          src="/logo_nutri.png"
+          alt="Assistente nutricional inteligente"
+          className="w-48 mb-4"
+        />
+        <h2 className="text-xl font-semibold mb-6">Assistente Nutricional Inteligente</h2>
+        <p className="text-center text-slate-700 mb-6">
+          Bem-vindo(a) ao NutriAI! Responda o questionário abaixo para que possamos entender melhor
+          seu perfil nutricional e oferecer recomendações personalizadas.
+        </p>
+        <form className="grid gap-4 w-full max-w-md">
+          <input type="email" placeholder="Seu e-mail" className="border rounded-lg px-4 py-2" required />
+          <select className="border rounded-lg px-4 py-2" required>
+            <option value="" disabled selected>
+              Selecione seu sexo
+            </option>
+            <option value="Homem">Homem</option>
+            <option value="Mulher">Mulher</option>
+          </select>
+          <input type="text" placeholder="Altura (em cm)" className="border rounded-lg px-4 py-2" required />
+          <input type="text" placeholder="Peso (em kg)" className="border rounded-lg px-4 py-2" required />
+          <input type="number" placeholder="Idade" className="border rounded-lg px-4 py-2" required />
+          <input type="text" placeholder="Alérgico a algum alimento?" className="border rounded-lg px-4 py-2" />
+          <input type="text" placeholder="Alimento que não gosta" className="border rounded-lg px-4 py-2" />
+          <button
+            type="submit"
+            className="bg-slate-800 text-white py-2 rounded-lg hover:bg-slate-700"
+          >
+            Enviar Questionário
+          </button>
+        </form>
+      </div>
     </div>
   );
 }
@@ -102,8 +150,8 @@ function InformacoesPanel() {
     <div className="bg-white rounded-2xl shadow p-6">
       <h2 className="text-xl font-semibold mb-4">Informações Importantes</h2>
       <p className="text-slate-700 mb-2">
-        O NutriAI é um assistente criado para auxiliar no acompanhamento
-        nutricional, oferecendo orientações gerais sobre hábitos saudáveis.
+        O NutriAI é um assistente criado para auxiliar no acompanhamento nutricional,
+        oferecendo orientações gerais sobre hábitos saudáveis.
       </p>
       <p className="text-slate-700">
         Lembre-se: as informações aqui fornecidas são educativas e não substituem a consulta
