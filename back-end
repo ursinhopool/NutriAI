@@ -1,0 +1,85 @@
+'''from flask import Flask, request, jsonify, render_template
+from flask_cors import CORS
+import sqlite3
+import os
+
+app = Flask(__name__)
+CORS(app) # Isso permite requisições do front-end
+
+# Configuração do banco de dados
+DB_PATH = 'seu_banco_de_dados.db'  # Altere para o caminho do seu banco
+
+def get_db_connection():
+    conn = sqlite3.connect(DB_PATH)
+    conn.row_factory = sqlite3.Row
+    return conn '''
+
+@app.route('/')
+def index():
+    return render_template('index.html')  # Se quiser servir o HTML pelo Flask
+
+@app.route('/api/submit-form', methods=['POST'])
+def submit_form():
+
+def formulario():
+    try: 
+        # Recebe os dados do formulário
+        data = request.get_json
+
+        # Dados do formulário
+
+        email = data.get('email')
+        sexo = data.get('sexo')
+        altura = data.get('altura')
+        peso = data.get('peso')
+        idade = data.get('idade')
+        alergias = data.get('alergias','')
+        alimentos_nao_gosta = data.get('alimentos_nao_gosta','')
+
+    # Validação básica
+    if not all([email, sexo, altura, peso,idade, alergias, alimentos_nao_gosta])
+        return jsonify({'error':'Preenhca todos os campos obrigatórios'}),400
+
+    # Conecta com o banco de dados
+    conn = get_db_connection()
+    cursor = conn.cursor()
+
+    # Insere os dados no banco (ajuste conforme sua estrutura de tabela)
+    cursor.execute('''
+        INSERT INTO usuarios (email, sexo, altura, peso, idade, alergias, alimentos_nao_gosta)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    ''', (email, sexo, altura, peso, idade, alergias, alimentos_nao_gosta))
+
+    conn.commit()
+    conn.close()
+
+    # Dados salvo com Sucesso
+    return jsonify({
+        'message': 'Dados salvos com sucesso!',
+        'id': cursor.lastrowid
+    }), 200
+
+    except Exception as e :
+        return jsonify({'error' : f'Erro ao processar dados: {str(e)}'}), 500
+
+
+@app.route('/api/usuarios', methods=['GET'])
+def get_usuarios():
+    try:
+        conn = get_db_connection
+        cursor = cursor.fetchall()
+
+        conn.close()
+
+        # Converte para lista de dicionários
+        usuarios_list = []
+        for usuarios in usuarios:
+            usuarios_list.append(dict(usuario))
+        
+        return jsonify(usuarios_list), 200
+
+    except Exception as e:
+        return jsonify({'error': f'Erro ao buscar dados: {str(e)}'}), 500
+    
+if __name__ == '__main__':
+    app.run(debug=True, port=5000)
