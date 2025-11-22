@@ -90,6 +90,28 @@ def questionario():
 
     info_pessoal.append(novo_info_pessoal)
 
+    for IMC in info_pessoal:
+        peso_corp = float(IMC["peso"])
+        altura_corp = float(IMC["altura"])
+        idade_corp = int(IMC["idade"])
+        MaOrFe = IMC["sexo"]
+
+        if MaOrFe == "Masculino":
+            MF = 1 
+        
+        else:
+            MF = 0
+#==========================================================================================================
+#IMC calculo
+        imc = peso_corp / (altura_corp *altura_corp)
+        IMC["imc"] = round(imc, 2)
+
+#==========================================================================================================
+#percentual de gordura, calculo.
+
+        per_gordura = 1.20 * imc + 0.23 * idade_corp - 10.8 * MF - 5.4
+        IMC["percentual_gordura"] = round(per_gordura, 2)
+
     return jsonify({"success": True, "message": "Dados salvos!"}), 200
     
 
@@ -114,31 +136,6 @@ def registro():
 
     return jsonify({"success": True, "message": "Registro salvo!"})
 
-
-#==========================================================================================================
-#Calculos
-def calculos():
-    for IMC in info_pessoal:
-        peso_corp = float(IMC["peso"])
-        altura_corp = float(IMC["altura"])
-        idade_corp = int(IMC["idade"])
-        MaOrFe = IMC["sexo"]
-
-        if MaOrFe == "Masculino":
-            MF = 1 
-        
-        else:
-            MF = 0
-#==========================================================================================================
-#IMC calculo
-        imc = peso_corp / (altura_corp *altura_corp)
-        IMC["imc"] = round(imc, 2)
-
-#==========================================================================================================
-#percentual de gordura, calculo.
-
-        per_gordura = 1.20 * imc + 0.23 * idade_corp - 10.8 * MF - 5.4
-        IMC["percentual_gordura"] = round(per_gordura, 2)
     
 #==========================================================================================================
   
