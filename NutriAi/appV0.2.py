@@ -10,12 +10,7 @@ import sqlite3
 info_login = []
 info_pessoal = []
 registros = []
-dieta = []
-
-#==========================================================================================================
-#AI
-
-
+dietas = []
 
 #==========================================================================================================
 #Servidor
@@ -26,29 +21,26 @@ CORS(app)
 #==========================================================================================================
 #Rota de sign_up
 
-@app.rout("/api/sign_up", methods=["POST"])
+@app.route("/api/sign_up", methods=["POST"])
 def sign():
     signUp = request.get_json()
     email_sign = signUp.get("email_sign")
     senha_sign = signUp.get("senha_sign")
 
+    if not email_sign:
+        return jsonify({"success": False, "message": "Insira um email válido."}), 400
+
+    if not senha_sign:
+        return jsonify({"success": False, "message": "A senha deve ter 8 caracteres."}), 400
+
     novo_cadastro = {
         "email": email_sign,
         "senha": senha_sign
-
     }
 
     info_login.append(novo_cadastro)
 
-    if not email_sign:
-        return jsonify({"Sucesso" : False, "message": "insira um email valido, por favor!"}), 400
-    
-    if not senha_sign:
-        return jsonify({"Sucesso" : False, "message": "Adicione uma senha com no minimo oito caracteres por favor!"}), 400
-    
-    if email_sign and senha_sign:
-        return jsonify({"Sucesso": True, "message": "email cadastrado com sucesso"}), 200
-    
+    return jsonify({"success": True, "message": "Cadastro realizado!"}), 200
 
 
 #==========================================================================================================
@@ -65,8 +57,9 @@ def login():
         if email_login == usuario["email"] and password_login == usuario["senha"]:
             return jsonify({"success": True, "message": "Login realizado!"})
         
-    return jsonify({"Sucess": False, "message": "Email ou Senha incorreta."}), 401
+    return jsonify({"success": False, "message": "Email ou senha incorretos."}), 401
     
+
 #==========================================================================================================
 #Formulário
 
@@ -82,6 +75,9 @@ def questionario():
     alergia = quest.get('alergia')
     alimentosngostados = quest.get('alimentosngostados')
 
+    if not all([nome, sexo, altura, peso, idade, alergia, alimentosngostados]):
+        return jsonify({"success": False, "message": "Preencha todos os campos."}), 400
+
     novo_info_pessoal = {
         "nome": nome,
         "sexo": sexo,
@@ -89,17 +85,14 @@ def questionario():
         "peso": peso,
         "idade": idade,
         "alergia": alergia,
-        "alimentosngostados": alimentosngostados,
-
-     }
+        "alimentosngostados": alimentosngostados
+    }
 
     info_pessoal.append(novo_info_pessoal)
 
-    if not all([nome, sexo, altura, peso, idade,alergia,alimentosngostados]):
-        return jsonify({"Sucesso" : False, "message":'Preencha todos os campos obrigatórios'}), 400
-    else:
-         return jsonify({"success": True, "message":"Dados salvos com sucesso"}), 200
+    return jsonify({"success": True, "message": "Dados salvos!"}), 200
     
+
 #==========================================================================================================
 #Registro
     
@@ -109,15 +102,27 @@ def registro():
     calorias = regis.get("calorias")
     exercicios = regis.get("exercicio")
 
+    if not calorias or not exercicios:
+        return jsonify({"Erro": "Informações incompletas!"}), 400
+
     add_registro = {
         "Kcal": calorias,
         "exercicios": exercicios
     }
 
     registros.append(add_registro)
-    
-    if not exercicios or not calorias:
-        return jsonify({"Erro": "Informações incompletas!"})
+
+    return jsonify({"success": True, "message": "Registro salvo!"})
+
+
+#==========================================================================================================
+#Calculos
+def calculos():
+    for pessoa in info_pessoal:
+        peso_corp = float(pessoa["peso"])
+        altura_corp = float(pessoa["altura"])
+        imc = peso_corp / (altura_corp ** 2)
+        pessoa["imc"] = round(imc, 2)
     
 #==========================================================================================================
   
