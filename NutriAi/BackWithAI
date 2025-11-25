@@ -1,0 +1,289 @@
+#==========================================================================================================
+#Anotação_Luan
+#Tem possiveis erros com os calculos de imc e a conversão de homem/mulher para seus respectivos números na formula de Deurenberg
+#Talvez tenha um erro na verificação de login, mas não tenho certeza
+#Algum erro no tratamento da API?
+
+
+
+
+#==========================================================================================================
+#Dependencias
+
+from flask import Flask, request, jsonify
+from flask_cors import CORS
+import sqlite3
+import os
+
+#==========================================================================================================
+#Variaveis Globais
+
+info_login = []
+info_pessoal = []
+registros = []
+dietas = []
+
+#==========================================================================================================
+#AI
+from google import genai
+
+# Coloque sua API KEY aqui
+GEMINI_API_KEY = "AIzaSyCzen7jzeJ5XUi1t1_28APjvUoOyxt5gXk"  # Substitua pela sua chave real
+
+# Inicializar o cliente Gemini corretamente
+client = genai.Client(api_key=GEMINI_API_KEY)
+
+def gerar_recomendacao_dieta(info_usuario, registros_recentes):
+    """Gera recomendações de dieta personalizada usando Gemini AI"""
+   
+    prompt = f"""
+    Com base nas seguintes informações do usuário:
+    - Nome: {info_usuario.get('nome', 'N/A')}
+    - Sexo: {info_usuario.get('sexo', 'N/A')}
+    - Altura: {info_usuario.get('altura', 'N/A')} cm
+    - Peso: {info_usuario.get('peso', 'N/A')} kg
+    - Idade: {info_usuario.get('idade', 'N/A')} anos
+    - Alergias: {info_usuario.get('alergia', 'Nenhuma')}
+    - Alimentos não gostados: {info_usuario.get('alimentosngostados', 'Nenhum')}
+   
+    E registros recentes:
+    - Calorias consumidas: {registros_recentes.get('Kcal', 'N/A')}
+    - Exercícios realizados: {registros_recentes.get('exercicios', 'N/A')}
+   
+    Por favor, gere uma recomendação de dieta personalizada incluindo:
+    1. Plano alimentar para um dia (café da manhã, almoço, jantar e lanches)
+    2. Recomendações nutricionais específicas
+    3. Sugestões de ajustes baseados nos exercícios e calorias
+    4. Considerando as alergias e preferências alimentares
+   
+    Formate a resposta de maneira clara e organizada.
+    """
+   
+    try:
+        response = client.models.generate_content(
+            model='gemini-pro',
+            contents=prompt
+        )
+        return response.text
+    except Exception as e:
+        return f"Erro ao gerar recomendação: {str(e)}"
+
+def analisar_progresso(historico_registros, info_pessoal):
+    """Analisa o progresso do usuário usando Gemini AI"""
+   
+    # Formatar o histórico para melhor legibilidade
+    historico_formatado = ""
+    for i, registro in enumerate(historico_registros[-5:], 1):  # Últimos 5 registros
+        historico_formatado += f"Registro {i}: {registro}\n"
+   
+    prompt = f"""
+    Analise o progresso do usuário com base nestes dados:
+   
+    Informações pessoais:
+    - Peso: {info_pessoal.get('peso', 'N/A')} kg
+    - Altura: {info_pessoal.get('altura', 'N/A')} cm
+    - Idade: {info_pessoal.get('idade', 'N/A')} anos
+   
+    Histórico de registros (últimos {len(historico_registros[-5:])} registros):
+    {historico_formatado}
+   
+    Forneça:
+    1. Análise do progresso
+    2. Sugestões de melhorias
+    3. Recomendações para metas futuras
+    4. Alertas sobre possíveis problemas
+   
+    Seja encorajador e construtivo.
+    """
+   
+    try:
+        response = client.models.generate_content(
+            model='gemini-pro',
+            contents=prompt
+        )
+        return response.text
+    except Exception as e:
+        return f"Erro ao analisar progresso: {str(e)}"
+
+#==========================================================================================================
+#Servidor
+
+app = Flask(__name__)
+CORS(app)
+
+#==========================================================================================================
+#Rota de sign_up
+
+@app.route("/api/sign_up", methods=["POST"])
+def sign():
+    signUp = request.get_json()
+    email_sign = signUp.get("email_sign")
+    senha_sign = signUp.get("senha_sign")
+
+    if not email_sign:
+        return jsonify({"success": False, "message": "Insira um email válido."}), 400
+
+    if not senha_sign:
+        return jsonify({"success": False, "message": "A senha deve ter 8 caracteres."}), 400
+
+    novo_cadastro = {
+        "email": email_sign,
+        "senha": senha_sign
+    }
+
+    info_login.append(novo_cadastro)
+
+    return jsonify({"success": True, "message": "Cadastro realizado!"}), 200
+
+
+#==========================================================================================================
+#Rota de Login
+
+@app.route("/api/login", methods=["POST"])
+def paglogin():
+
+    login = request.get_json()
+    email_login = login.get("email")
+    se_login = login.get("password")
+
+    for usuario in info_login:
+        if email_login == usuario["email"] and se_login == usuario["senha"]:
+            return jsonify({"success": True, "message": "Login realizado!"})
+        
+    return jsonify({"success": False, "message": "Email ou senha incorretos."}), 401
+    
+
+#==========================================================================================================
+#Formulário
+
+@app.route("/api/formulario", methods=["POST"])
+def questionario():
+
+    quest = request.get_json()
+    nome = quest.get('nome')
+    sexo = quest.get('sexo')
+    altura = quest.get('altura')
+    peso = quest.get('peso')
+    idade = quest.get('idade')
+    alergia = quest.get('alergia')
+    alimentosngostados = quest.get('alimentosngostados')
+
+    if not all([nome, sexo, altura, peso, idade, alergia, alimentosngostados]):
+        return jsonify({"success": False, "message": "Preencha todos os campos."}), 400
+
+    novo_info_pessoal = {
+        "nome": nome,
+        "sexo": sexo,
+        "altura": altura,
+        "peso": peso,
+        "idade": idade,
+        "alergia": alergia,
+        "alimentosngostados": alimentosngostados
+    }
+
+    info_pessoal.append(novo_info_pessoal)
+
+    for IMC in info_pessoal:
+        peso_corp = float(IMC["peso"])
+        altura_corp = float(IMC["altura"])
+        idade_corp = int(IMC["idade"])
+        MaOrFe = IMC["sexo"]
+
+        if MaOrFe == "Masculino":
+            MF = 1 
+        
+        else:
+            MF = 0
+#==========================================================================================================
+#IMC calculo
+        imc = peso_corp / (altura_corp *altura_corp)
+        IMC["imc"] = round(imc, 2)
+
+#==========================================================================================================
+#percentual de gordura, calculo.
+
+        per_gordura = 1.20 * imc + 0.23 * idade_corp - 10.8 * MF - 5.4
+        IMC["percentual_gordura"] = round(per_gordura, 2)
+
+    return jsonify({"success": True, "message": "Dados salvos!"}), 200
+    
+
+#==========================================================================================================
+#Registro
+    
+@app.route("/api/Registro", methods= ["POST"])
+def registro():
+    regis = request.get_json()
+    calorias = regis.get("calorias")
+    exercicios = regis.get("exercicio")
+
+    if not calorias or not exercicios:
+        return jsonify({"Erro": "Informações incompletas"}), 400
+
+    add_registro = {
+        "Kcal": calorias,
+        "exercicios": exercicios
+    }
+
+    registros.append(add_registro)
+
+    return jsonify({"success": True, "message": "Registro salvo!"})
+
+    
+#==========================================================================================================#==========================================================================================================
+# Rota para gerar recomendação de dieta
+@app.route("/api/gerar_dieta", methods=["POST"])
+def gerar_dieta():
+    try:
+        if not info_pessoal or not registros:
+            return jsonify({"success": False, "message": "Dados insuficientes para gerar dieta"}), 400
+       
+        info_usuario = info_pessoal[-1]  # Último usuário cadastrado
+        registro_recente = registros[-1]  # Último registro
+       
+        recomendacao = gerar_recomendacao_dieta(info_usuario, registro_recente)
+       
+        return jsonify({
+            "success": True,
+            "recomendacao": recomendacao
+        }), 200
+       
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Erro ao gerar dieta: {str(e)}"}), 500
+
+#==========================================================================================================
+# Rota para analisar progresso
+@app.route("/api/analisar_progresso", methods=["GET"])
+def analisar_progresso_rota():
+    try:
+        if not info_pessoal or not registros:
+            return jsonify({"success": False, "message": "Dados insuficientes para análise"}), 400
+       
+        info_usuario = info_pessoal[-1]
+        historico = registros  # Todos os registros
+       
+        analise = analisar_progresso(historico, info_usuario)
+       
+        return jsonify({
+            "success": True,
+            "analise": analise
+        }), 200
+       
+    except Exception as e:
+        return jsonify({"success": False, "message": f"Erro ao analisar progresso: {str(e)}"}), 500
+
+#==========================================================================================================
+# Rota de health check
+@app.route("/api/health", methods=["GET"])
+def health_check():
+    return jsonify({"status": "OK", "message": "Servidor funcionando"}), 200
+
+#==========================================================================================================
+ 
+if __name__ == "__main__":
+    # Para desenvolvimento, debug=True é útil
+    # Para produção, use: waitress ou gunicorn
+    print("Servidor iniciado na porta 5000")
+    print("Acesse: http://localhost:5000")
+    print("Warning é normal em desenvolvimento")
+    app.run(debug=True, host='0.0.0.0', port=5000)
