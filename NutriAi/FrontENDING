@@ -1,0 +1,1282 @@
+import React, { useState, useEffect } from "react";
+import { User, Settings, FileText, TrendingUp, Users, Utensils, HelpCircle, ChevronRight, CheckCircle } from "lucide-react";
+import minhaImagem from "./assets/logov4.png"
+
+
+// ============================================
+// teste
+
+
+
+// ============================================
+
+// ============================================
+// CAMADA 1: AUTENTICAÇÃO (Login e Recuperação)
+// ============================================
+
+function LoginLayer({ onLogin }) {
+  const [email, setEmail] = useState("");
+  const [password, setPassword] = useState("");
+  const [resetMode, setResetMode] = useState(false);
+  const [resetEmail, setResetEmail] = useState("");
+
+  async function handleLogin(e) {
+  e.preventDefault();
+
+  if (!email || !password) {
+    alert("Por favor, preencha todos os campos.");
+    return;
+  }
+
+  try {
+    const response = await fetch("http://127.0.0.1:5000/api/login", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        email: email,
+        password: password
+      }),
+    });
+
+    const data = await response.json();
+
+    if (response.ok && data.success) {
+      alert("Login realizado com sucesso!");
+      onLogin(email); // mantém sua lógica
+    } else {
+      alert(data.message || "Email ou senha incorretos.");
+    }
+
+  } catch (error) {
+    console.error("Erro ao conectar com o servidor:", error);
+    alert("Erro ao conectar com o servidor.");
+  }
+}
+  function handlePasswordReset(e) {
+    e.preventDefault();
+    if (resetEmail) {
+      alert(`Um link de recuperação foi enviado para ${resetEmail}`);
+      setResetEmail("");
+      setResetMode(false);
+    } else {
+      alert("Digite seu e-mail para recuperar a senha.");
+    }
+  }
+
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-green-50 to-blue-50">
+      <div className="bg-white shadow-2xl rounded-2xl p-8 w-full max-w-md">
+        {!resetMode ? (
+          <>
+            <div className="text-center mb-6">
+              <div className="flex justify-center mb-4">
+                <img 
+                  src={minhaImagem} 
+                  alt="NutriAI Logo" 
+                  className="h-32 w-auto"
+                />
+              </div>
+              <h1 className="text-3xl font-bold text-slate-800 mb-2">NutriAI</h1>
+              <p className="text-slate-600">Seu assistente nutricional inteligente</p>
+            </div>
+            <form onSubmit={handleLogin} className="flex flex-col gap-4">
+              <input
+                type="email"
+                placeholder="E-mail"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="border border-slate-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                required
+              />
+              <input
+                type="password"
+                placeholder="Senha"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="border border-slate-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                required
+              />
+              <button
+                type="submit"
+                className="bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 font-semibold transition-colors"
+              >
+                Entrar
+              </button>
+            </form>
+            <p className="text-center text-sm text-slate-600 mt-4">
+              <button
+                onClick={() => setResetMode(true)}
+                className="text-green-600 font-medium hover:underline"
+              >
+                Esqueceu sua senha?
+              </button>
+            </p>
+          </>
+        ) : (
+          <>
+            <h1 className="text-2xl font-bold text-center mb-6">Recuperar Senha</h1>
+            <form onSubmit={handlePasswordReset} className="flex flex-col gap-4">
+              <input
+                type="email"
+                placeholder="Digite seu e-mail"
+                value={resetEmail}
+                onChange={(e) => setResetEmail(e.target.value)}
+                className="border border-slate-300 rounded-lg px-4 py-3 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                required
+              />
+              <button
+                type="submit"
+                className="bg-green-600 text-white py-3 rounded-lg hover:bg-green-700 font-semibold"
+              >
+                Enviar Link de Recuperação
+              </button>
+              <button
+                type="button"
+                onClick={() => setResetMode(false)}
+                className="text-slate-700 hover:underline"
+              >
+                Voltar ao login
+              </button>
+            </form>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
+
+// ============================================
+// CAMADA 2: AMBIENTE DO USUÁRIO
+// ============================================
+
+// Componente de Navegação por Abas
+function Tab({ label, id, active, onClick, icon: Icon }) {
+  const sel = active === id;
+  return (
+    <button
+      onClick={() => onClick(id)}
+      className={`px-4 py-2 rounded-lg font-medium flex items-center gap-2 transition-colors ${
+        sel ? "bg-green-600 text-white" : "bg-transparent text-slate-700 hover:bg-slate-100"
+      }`}
+      type="button"
+    >
+      {Icon && <Icon size={18} />}
+      {label}
+    </button>
+  );
+}
+
+// ============================================
+// CAMADA ANINHADA: QUESTIONÁRIO
+// ============================================
+
+function QuestionarioLayer({ onClose, onSubmit, questionarioExistente }) {
+  const [form, setForm] = useState(
+    questionarioExistente || {
+      nome: "",
+      sexo: "",
+      altura: "",
+      peso: "",
+      idade: "",
+      alergia: "",
+      nao_gosta: "",
+      objetivo: "",
+    }
+  );
+
+  function handleChange(e) {
+    const { name, value } = e.target;
+    setForm((s) => ({ ...s, [name]: value }));
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+
+    const idadeNum = Number(form.idade);
+    if (!form.nome.trim() || Number.isNaN(idadeNum) || idadeNum < 0) {
+      alert("Preencha corretamente o nome e idade (idade não pode ser negativa).");
+      return;
+    }
+
+    try {
+      const response = await fetch("http://127.0.0.1:5000/api/formulario", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          nome: form.nome,
+          sexo: form.sexo,
+          altura: form.altura,
+          peso: form.peso,
+          idade: form.idade,
+          objetivo: form.objetivo,
+          alergia: form.alergia,
+          nao_gosta: form.nao_gosta,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.message || "Erro ao enviar formulário.");
+        return;
+      }
+
+      alert(`Questionário enviado com sucesso! Obrigado, ${form.nome}!`);
+      if (onSubmit) onSubmit(form);
+
+    } catch (error) {
+      alert("Erro ao conectar ao servidor.");
+      console.error(error);
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-2xl max-h-[90vh] overflow-y-auto">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold text-slate-800">
+            {questionarioExistente ? "Atualizar" : "Preencher"} Questionário Nutricional
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-slate-500 hover:text-slate-700 text-2xl"
+          >
+            ×
+          </button>
+        </div>
+
+        <form className="grid gap-4" onSubmit={handleSubmit}>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Nome completo *</label>
+            <input
+              name="nome"
+              value={form.nome}
+              onChange={handleChange}
+              type="text"
+              className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Sexo *</label>
+            <select
+              name="sexo"
+              value={form.sexo}
+              onChange={handleChange}
+              className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              required
+            >
+              <option value="" disabled>Selecione seu sexo</option>
+              <option value="Homem">Homem</option>
+              <option value="Mulher">Mulher</option>
+            </select>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Altura (cm) *</label>
+              <input
+                name="altura"
+                value={form.altura}
+                onChange={handleChange}
+                type="number"
+                className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Peso (kg) *</label>
+              <input
+                name="peso"
+                value={form.peso}
+                onChange={handleChange}
+                type="number"
+                step="0.1"
+                className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                required
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm font-medium text-slate-700 mb-1">Idade *</label>
+              <input
+                name="idade"
+                value={form.idade}
+                onChange={handleChange}
+                type="number"
+                min="0"
+                className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                required
+              />
+            </div>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Objetivo principal *</label>
+            <select
+              name="objetivo"
+              value={form.objetivo}
+              onChange={handleChange}
+              className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              required
+            >
+              <option value="" disabled>Selecione seu objetivo</option>
+              <option value="Emagrecimento">Emagrecimento</option>
+              <option value="Ganho de massa muscular">Ganho de massa muscular</option>
+              <option value="Manutenção">Manutenção de peso</option>
+              <option value="Saúde geral">Saúde geral</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Alérgico a algum alimento?</label>
+            <input
+              name="alergia"
+              value={form.alergia}
+              onChange={handleChange}
+              type="text"
+              placeholder="Ex: amendoim, lactose, glúten"
+              className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">Alimentos que não gosta</label>
+            <input
+              name="nao_gosta"
+              value={form.nao_gosta}
+              onChange={handleChange}
+              type="text"
+              placeholder="Ex: brócolis, peixe"
+              className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+            />
+          </div>
+
+          <div className="flex gap-3 justify-end mt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-6 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 font-medium"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
+            >
+              {questionarioExistente ? "Atualizar" : "Enviar"} Questionário
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ============================================
+// CAMADA ANINHADA: CADASTRO DE NUTRICIONISTA
+// ============================================
+
+function CadastroNutricionistaLayer({ onClose }) {
+  const [form, setForm] = React.useState({
+    nome: "",
+    sobre: "",
+    contato: "",
+  });
+
+  function handleChange(e) {
+    const { name, value } = e.target;
+    setForm((s) => ({ ...s, [name]: value }));
+  }
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+
+    if (!form.nome.trim() || !form.sobre.trim() || !form.contato.trim()) {
+      alert("Por favor, preencha todos os campos.");
+      return;
+    }
+
+    try {
+      const response = await fetch("http://127.0.0.1:5000/api/Nutricadastro", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          nome: form.nome,
+          sobre: form.sobre,
+          contato: form.contato,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        alert(data.message || "Erro ao cadastrar.");
+        return;
+      }
+
+      alert(`Nutricionista ${form.nome} cadastrado com sucesso!`);
+      setForm({ nome: "", sobre: "", contato: "" });
+      onClose();
+
+    } catch (err) {
+      console.error(err);
+      alert("Erro ao conectar com o servidor Flask.");
+    }
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-2xl">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold text-slate-800">
+            Cadastrar Nutricionista
+          </h2>
+          <button
+            onClick={onClose}
+            className="text-slate-500 hover:text-slate-700 text-2xl"
+          >
+            ×
+          </button>
+        </div>
+
+        <form className="grid gap-4" onSubmit={handleSubmit}>
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Nome Completo *
+            </label>
+            <input
+              name="nome"
+              value={form.nome}
+              onChange={handleChange}
+              type="text"
+              placeholder="Ex: Dr. João Silva"
+              className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Sobre o Trabalho *
+            </label>
+            <textarea
+              name="sobre"
+              value={form.sobre}
+              onChange={handleChange}
+              placeholder="Descreva sua especialidade, experiência e áreas de atuação..."
+              className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent min-h-32 resize-y"
+              required
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-medium text-slate-700 mb-1">
+              Contato *
+            </label>
+            <input
+              name="contato"
+              value={form.contato}
+              onChange={handleChange}
+              type="text"
+              placeholder="Ex: email@exemplo.com ou (11) 99999-9999"
+              className="w-full border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+              required
+            />
+          </div>
+
+          <div className="flex gap-3 justify-end mt-4">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-6 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 font-medium"
+            >
+              Cancelar
+            </button>
+            <button
+              type="submit"
+              className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
+            >
+              Cadastrar Nutricionista
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+  );
+}
+
+// ============================================
+// CAMADA ANINHADA: CONFIGURAÇÕES
+// ============================================
+
+function ConfiguracoesLayer({ onClose, userEmail }) {
+  const [notificacoes, setNotificacoes] = useState(true);
+  const [lembretesRefeicao, setLembretesRefeicao] = useState(true);
+  const [modoEscuro, setModoEscuro] = useState(false);
+
+  function handleSalvar() {
+    alert("Configurações salvas com sucesso!");
+    onClose();
+  }
+
+  return (
+    <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+      <div className="bg-white rounded-2xl shadow-2xl p-8 w-full max-w-2xl">
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-2xl font-bold text-slate-800">Configurações</h2>
+          <button
+            onClick={onClose}
+            className="text-slate-500 hover:text-slate-700 text-2xl"
+          >
+            ×
+          </button>
+        </div>
+
+        <div className="space-y-6">
+          <div className="border-b pb-4">
+            <h3 className="font-semibold text-slate-800 mb-3">Conta</h3>
+            <div className="space-y-2">
+              <p className="text-sm text-slate-600">E-mail conectado:</p>
+              <p className="font-medium text-slate-800">{userEmail}</p>
+            </div>
+          </div>
+
+          <div className="border-b pb-4">
+            <h3 className="font-semibold text-slate-800 mb-3">Notificações</h3>
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <label className="text-slate-700">Notificações por e-mail</label>
+                <input
+                  type="checkbox"
+                  checked={notificacoes}
+                  onChange={(e) => setNotificacoes(e.target.checked)}
+                  className="w-5 h-5"
+                />
+              </div>
+              <div className="flex items-center justify-between">
+                <label className="text-slate-700">Lembretes de refeição</label>
+                <input
+                  type="checkbox"
+                  checked={lembretesRefeicao}
+                  onChange={(e) => setLembretesRefeicao(e.target.checked)}
+                  className="w-5 h-5"
+                />
+              </div>
+            </div>
+          </div>
+
+          <div className="border-b pb-4">
+            <h3 className="font-semibold text-slate-800 mb-3">Aparência</h3>
+            <div className="flex items-center justify-between">
+              <label className="text-slate-700">Modo escuro</label>
+              <input
+                type="checkbox"
+                checked={modoEscuro}
+                onChange={(e) => setModoEscuro(e.target.checked)}
+                className="w-5 h-5"
+              />
+            </div>
+          </div>
+
+          <div>
+            <h3 className="font-semibold text-slate-800 mb-3">Privacidade</h3>
+            <button className="text-red-600 hover:text-red-700 font-medium">
+              Excluir minha conta
+            </button>
+          </div>
+        </div>
+
+        <div className="flex gap-3 justify-end mt-6">
+          <button
+            onClick={onClose}
+            className="px-6 py-2 border border-slate-300 rounded-lg hover:bg-slate-50 font-medium"
+          >
+            Cancelar
+          </button>
+          <button
+            onClick={handleSalvar}
+            className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
+          >
+            Salvar Alterações
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// ============================================
+// PAINÉIS DE CONTEÚDO
+// ============================================
+
+function InicioPanel({ onAbrirQuestionario, questionarioPreenchido }) {
+  return (
+    <div className="space-y-6">
+      {/* Hero Section */}
+      <div className="bg-gradient-to-r from-green-500 to-blue-500 rounded-2xl shadow-lg p-8 text-white">
+        <h2 className="text-3xl font-bold mb-3">Bem-vindo ao NutriAI</h2>
+        <p className="text-lg mb-6">
+          Seu assistente nutricional inteligente para uma vida mais saudável
+        </p>
+        <button
+          onClick={onAbrirQuestionario}
+          className="bg-white text-green-600 px-6 py-3 rounded-lg font-semibold hover:bg-green-50 transition-colors flex items-center gap-2"
+        >
+          {questionarioPreenchido ? (
+            <>
+              <CheckCircle size={20} />
+              Atualizar Questionário
+            </>
+          ) : (
+            <>
+              <FileText size={20} />
+              Preencher Questionário Inicial
+            </>
+          )}
+          <ChevronRight size={20} />
+        </button>
+      </div>
+
+      {/* Informações sobre o serviço */}
+      <div className="bg-white rounded-2xl shadow p-6">
+        <h3 className="text-2xl font-semibold text-slate-800 mb-4">O que o NutriAI oferece?</h3>
+        
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div className="flex gap-4">
+            <div className="flex-shrink-0">
+              <div className="w-12 h-12 bg-green-100 rounded-lg flex items-center justify-center">
+                <FileText className="text-green-600" size={24} />
+              </div>
+            </div>
+            <div>
+              <h4 className="font-semibold text-slate-800 mb-1">Análise Personalizada</h4>
+              <p className="text-slate-600 text-sm">
+                Avaliação completa do seu perfil nutricional baseada nas suas informações pessoais
+              </p>
+            </div>
+          </div>
+
+          <div className="flex gap-4">
+            <div className="flex-shrink-0">
+              <div className="w-12 h-12 bg-blue-100 rounded-lg flex items-center justify-center">
+                <Utensils className="text-blue-600" size={24} />
+              </div>
+            </div>
+            <div>
+              <h4 className="font-semibold text-slate-800 mb-1">Planos Alimentares</h4>
+              <p className="text-slate-600 text-sm">
+                Sugestões de dietas e receitas adaptadas aos seus objetivos e restrições
+              </p>
+            </div>
+          </div>
+
+          <div className="flex gap-4">
+            <div className="flex-shrink-0">
+              <div className="w-12 h-12 bg-purple-100 rounded-lg flex items-center justify-center">
+                <TrendingUp className="text-purple-600" size={24} />
+              </div>
+            </div>
+            <div>
+              <h4 className="font-semibold text-slate-800 mb-1">Acompanhamento de Progresso</h4>
+              <p className="text-slate-600 text-sm">
+                Registre suas refeições e exercícios para monitorar sua evolução
+              </p>
+            </div>
+          </div>
+
+          <div className="flex gap-4">
+            <div className="flex-shrink-0">
+              <div className="w-12 h-12 bg-orange-100 rounded-lg flex items-center justify-center">
+                <Users className="text-orange-600" size={24} />
+              </div>
+            </div>
+            <div>
+              <h4 className="font-semibold text-slate-800 mb-1">Nutricionistas Especializados</h4>
+              <p className="text-slate-600 text-sm">
+                Conecte-se com profissionais qualificados para orientação personalizada
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      {/* Call to Action */}
+      {!questionarioPreenchido && (
+        <div className="bg-yellow-50 border-l-4 border-yellow-400 rounded-lg p-6">
+          <div className="flex items-start gap-3">
+            <HelpCircle className="text-yellow-600 flex-shrink-0 mt-1" size={24} />
+            <div>
+              <h4 className="font-semibold text-yellow-800 mb-1">Comece agora!</h4>
+              <p className="text-yellow-700 text-sm mb-3">
+                Para receber recomendações personalizadas, preencha o questionário inicial. 
+                Leva apenas alguns minutos e você pode atualizá-lo quando quiser.
+              </p>
+              <button
+                onClick={onAbrirQuestionario}
+                className="bg-yellow-600 text-white px-4 py-2 rounded-lg hover:bg-yellow-700 font-medium text-sm"
+              >
+                Preencher agora
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+function DuvidasPanel() {
+  const perguntas = [
+    "Qual é a quantidade ideal de proteína por dia?",
+    "Devo evitar carboidratos à noite?",
+    "Como calcular meu IMC corretamente?",
+    "Quantas refeições devo fazer por dia?",
+    "Quais alimentos ajudam no ganho de massa muscular?",
+  ];
+
+  return (
+    <div className="bg-white rounded-2xl shadow p-6">
+      <h2 className="text-xl font-semibold mb-4">Dúvidas Frequentes</h2>
+      <ul className="space-y-3">
+        {perguntas.map((p, i) => (
+          <li
+            key={i}
+            className="p-4 border border-slate-200 rounded-lg hover:bg-slate-50 cursor-pointer transition-colors"
+          >
+            {p}
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
+function ProgressoPanel() {
+  const [calorias, setCalorias] = React.useState("");
+  const [exercicio, setExercicio] = React.useState("");
+  const [registros, setRegistros] = React.useState([]);
+  const [mostrarRegistros, setMostrarRegistros] = React.useState(false);
+
+  // Adicionar registro
+  async function handleAddRegistro(e) {
+    e.preventDefault();
+    const kcal = Number(calorias);
+    if (Number.isNaN(kcal) || kcal < 0 || !exercicio.trim()) {
+      alert("Por favor, insira um valor válido de calorias e descreva o exercício.");
+      return;
+    }
+
+    const novoRegistro = {
+      calorias: kcal,
+      exercicio: exercicio.trim(),
+      data: new Date().toISOString(),
+    };
+
+    // Adiciona ao estado local
+    setRegistros((prev) => [...prev, novoRegistro]);
+    setCalorias("");
+    setExercicio("");
+
+    // Envia para o backend
+    try {
+      await fetch("http://127.0.0.1:5000/api/Registro", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          calorias: novoRegistro.calorias,
+          exercicio: novoRegistro.exercicio,
+        }),
+      });
+      // Não precisa atualizar estado com a resposta, só armazenar no back
+    } catch (err) {
+      console.error("Erro ao enviar para o backend:", err);
+    }
+  }
+
+  // Remover registro local
+  function handleRemover(id) {
+    setRegistros((prev) => prev.filter((r) => r.id !== id));
+  }
+
+  return (
+    <div className="bg-white rounded-2xl shadow p-6 text-slate-700">
+      <h2 className="text-xl font-semibold mb-4 text-center">Registro de Progresso Diário</h2>
+
+      <form onSubmit={handleAddRegistro} className="grid gap-4 max-w-md mx-auto">
+        <input
+          type="number"
+          placeholder="Calorias perdidas hoje (kcal)"
+          value={calorias}
+          onChange={(e) => setCalorias(e.target.value)}
+          className="border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+          min="0"
+          required
+        />
+        <input
+          type="text"
+          placeholder="Exercícios realizados"
+          value={exercicio}
+          onChange={(e) => setExercicio(e.target.value)}
+          className="border border-slate-300 rounded-lg px-4 py-2 focus:ring-2 focus:ring-green-500 focus:border-transparent"
+          required
+        />
+        <div className="flex justify-end">
+          <button
+            type="submit"
+            className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 font-medium"
+          >
+            Adicionar Registro
+          </button>
+        </div>
+      </form>
+
+      <div className="text-center mt-6">
+        <button
+          onClick={() => setMostrarRegistros((s) => !s)}
+          className="text-green-600 font-medium hover:underline"
+          type="button"
+        >
+          {mostrarRegistros ? "Ocultar Registros" : "Ver Registros"}
+        </button>
+      </div>
+
+      {mostrarRegistros && (
+        <div className="mt-6 max-w-2xl mx-auto">
+          <h3 className="text-lg font-semibold mb-3 text-center">Seus Registros</h3>
+          {registros.length === 0 ? (
+            <p className="text-center text-slate-500">Nenhum registro adicionado ainda.</p>
+          ) : (
+            <ul className="space-y-3">
+              {registros.map((r, index) => (
+                <li key={index} className="border rounded-lg p-4 shadow-sm bg-slate-50">
+                  <p>
+                    <strong>Data:</strong> {new Date(r.data).toLocaleString()}
+                  </p>
+                  <p>
+                    <strong>Calorias:</strong> {r.calorias} kcal
+                  </p>
+                  <p>
+                    <strong>Exercício:</strong> {r.exercicio}
+                  </p>
+                  <div className="flex justify-end mt-2">
+                    <button
+                      onClick={() => handleRemover(index)}
+                      className="text-red-600 hover:text-red-700 font-medium"
+                    >
+                      Remover
+                    </button>
+                  </div>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}
+
+function InformacoesPanel() {
+  return (
+    <div className="bg-white rounded-2xl shadow p-6">
+      <h2 className="text-xl font-semibold mb-4">Informações Importantes</h2>
+      <p className="text-slate-700 mb-2">
+        O NutriAI é um assistente criado para auxiliar no acompanhamento nutricional, oferecendo
+        orientações gerais sobre hábitos saudáveis.
+      </p>
+      <p className="text-slate-700">
+        As informações aqui fornecidas são educativas e não substituem a consulta com um
+        nutricionista ou profissional de saúde.
+      </p>
+    </div>
+  );
+}
+
+function NutricionistaPanel({ onAbrirCadastro }) {
+  const [nutricionistas, setNutricionistas] = useState([]);
+  const [expandedId, setExpandedId] = useState(null);
+
+  // Busca os nutricionistas do backend ao montar o componente
+  useEffect(() => {
+    async function fetchNutricionistas() {
+      try {
+        const res = await fetch("http://127.0.0.1:5000/api/Nutricadastro");
+        const data = await res.json();
+        if (data.success) {
+          setNutricionistas(data.nutricionistas);
+        } else {
+          console.error("Erro ao buscar nutricionistas:", data.message);
+        }
+      } catch (err) {
+        console.error("Erro ao conectar com o backend:", err);
+      }
+    }
+    fetchNutricionistas();
+  }, []);
+
+  return (
+    <div className="bg-white rounded-2xl shadow p-6 flex flex-col items-center">
+      <div className="flex justify-between items-center w-full mb-6">
+        <h2 className="text-xl font-semibold">Nutricionistas Cadastrados</h2>
+        <button
+          onClick={onAbrirCadastro}
+          className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
+        >
+          <Users size={18} />
+          Cadastrar Nutricionista
+        </button>
+      </div>
+
+      {nutricionistas.length === 0 ? (
+        <div className="text-center py-12">
+          <Users size={64} className="text-slate-300 mx-auto mb-4" />
+          <h4 className="text-lg font-semibold text-slate-700 mb-2">
+            Nenhum nutricionista cadastrado
+          </h4>
+          <p className="text-slate-600 mb-6">
+            Cadastre nutricionistas para que os usuários possam encontrá-los
+          </p>
+          <button
+            onClick={onAbrirCadastro}
+            className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
+          >
+            Cadastrar Primeiro Nutricionista
+          </button>
+        </div>
+      ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 w-full">
+          {nutricionistas.map((n) => (
+            <div
+              key={n.id}
+              className="border rounded-2xl shadow-sm p-4 flex flex-col items-center text-center"
+            >
+              <div className="w-32 h-32 rounded-full bg-slate-100 overflow-hidden mb-3 flex items-center justify-center">
+                <User size={48} className="text-slate-400" />
+              </div>
+              <h3 className="text-lg font-semibold">{n.nome_nut}</h3>
+
+              {expandedId === n.id ? (
+                <>
+                  <p className="text-slate-700 text-sm mt-3">{n.sobre_nut}</p>
+                  <p className="text-slate-700 text-sm mt-2">
+                    <strong>Contato:</strong> {n.contato_nut}
+                  </p>
+                  <button
+                    onClick={() => setExpandedId(null)}
+                    className="mt-3 text-green-600 font-medium hover:underline"
+                  >
+                    Mostrar menos
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={() => setExpandedId(n.id)}
+                  className="mt-3 text-green-600 font-medium hover:underline"
+                >
+                  Ler mais
+                </button>
+              )}
+            </div>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+
+function DietaPanel() {
+  const [dietaGerada, setDietaGerada] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  const handleGerarDieta = async () => {
+    setLoading(true);
+    try {
+      const response = await fetch("http://127.0.0.1:5000/api/gerar_dieta", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({}) // Se quiser enviar dados do usuário, coloque aqui
+      });
+
+      const data = await response.json();
+
+      if (data.success) {
+        setDietaGerada(data.recomendacao);
+      } else {
+        alert(data.message);
+      }
+    } catch (error) {
+      console.error("Erro:", error);
+      alert("Erro ao gerar a dieta");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  function handleGerarPDF() {
+    if (!dietaGerada) {
+      alert("Nenhuma dieta foi gerada ainda!");
+      return;
+    }
+
+    const conteudoPDF = `
+      ╔════════════════════════════════════════╗
+      ║        NUTRIAI - PLANO ALIMENTAR       ║
+      ╚════════════════════════════════════════╝
+      
+      Data: ${new Date().toLocaleDateString('pt-BR')}
+      
+      ${dietaGerada}
+      
+      ────────────────────────────────────────
+      Este plano foi gerado pelo NutriAI
+      Consulte sempre um nutricionista
+      ────────────────────────────────────────
+    `;
+
+    const blob = new Blob([conteudoPDF], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `dieta-nutriai-${new Date().toISOString().split('T')[0]}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    URL.revokeObjectURL(url);
+  }
+
+  return (
+    <div className="bg-white rounded-2xl shadow p-6">
+      <div className="flex justify-between items-center mb-6">
+        <h3 className="font-semibold text-xl">Seu Plano Alimentar</h3>
+        {dietaGerada && (
+          <button
+            onClick={handleGerarPDF}
+            className="flex items-center gap-2 px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
+          >
+            <FileText size={18} />
+            Baixar PDF
+          </button>
+        )}
+      </div>
+
+      {!dietaGerada ? (
+        <div className="text-center py-12">
+          <Utensils size={64} className="text-slate-300 mx-auto mb-4" />
+          <h4 className="text-lg font-semibold text-slate-700 mb-2">
+            Nenhuma dieta gerada ainda
+          </h4>
+          <p className="text-slate-600 mb-6">
+            Preencha o questionário e solicite a geração de uma dieta personalizada
+          </p>
+          <button
+            onClick={handleGerarDieta}
+            disabled={loading}
+            className="px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium transition-colors"
+          >
+            {loading ? "Gerando..." : "Gerar Dieta Personalizada"}
+          </button>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          <div className="border rounded-xl p-6 bg-slate-50">
+            <div className="prose max-w-none">
+              <pre className="whitespace-pre-wrap font-sans text-slate-700">
+                {dietaGerada}
+              </pre>
+            </div>
+          </div>
+
+          <div className="flex justify-center">
+            <button
+              onClick={handleGerarDieta}
+              disabled={loading}
+              className="px-6 py-2 border-2 border-green-600 text-green-600 rounded-lg hover:bg-green-50 font-medium transition-colors"
+            >
+              {loading ? "Gerando..." : "Gerar Nova Dieta"}
+            </button>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// ============================================
+// COMPONENTE PRINCIPAL DA APLICAÇÃO
+// ============================================
+
+export default function App() {
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [userEmail, setUserEmail] = useState("");
+  const [activeTab, setActiveTab] = useState("inicio");
+  const [mostrarQuestionario, setMostrarQuestionario] = useState(false);
+  const [mostrarConfiguracoes, setMostrarConfiguracoes] = useState(false);
+  const [mostrarCadastroNutri, setMostrarCadastroNutri] = useState(false);
+  const [questionario, setQuestionario] = useState(null);
+  const [dietaGerada, setDietaGerada] = useState(null);
+  const [nutricionistas, setNutricionistas] = useState([]);
+
+  function handleLogin(email) {
+    setUserEmail(email);
+    setIsLoggedIn(true);
+  }
+
+  function handleLogout() {
+    setIsLoggedIn(false);
+    setUserEmail("");
+    setActiveTab("inicio");
+    setQuestionario(null);
+    setDietaGerada(null);
+  }
+
+  function handleSubmitQuestionario(dadosQuestionario) {
+    setQuestionario(dadosQuestionario);
+    setMostrarQuestionario(false);
+  }
+
+  function handleGerarDieta() {
+    // Aqui você integrará com a IA para gerar a dieta
+    // Por enquanto, vou simular uma mensagem
+    if (!questionario) {
+      alert("Por favor, preencha o questionário primeiro!");
+      setMostrarQuestionario(true);
+      return;
+    }
+    
+    alert("Esta funcionalidade será integrada com a IA para gerar uma dieta personalizada baseada no seu questionário.");
+    // Quando integrar com IA, você receberá a dieta e fará:
+    // setDietaGerada(dietaDaIA);
+  }
+
+  function handleCadastrarNutri(dados) {
+    const novoNutri = {
+      id: Date.now().toString(),
+      nome: dados.nome,
+      sobre: dados.sobre,
+      contato: dados.contato,
+    };
+    setNutricionistas((prev) => [...prev, novoNutri]);
+    setMostrarCadastroNutri(false);
+  }
+
+  if (!isLoggedIn) {
+    return <LoginLayer onLogin={handleLogin} />;
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-50 text-slate-900">
+      {/* Header */}
+      <header className="bg-white shadow-sm sticky top-0 z-20">
+        <div className="max-w-6xl mx-auto px-4 py-3">
+          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-3">
+                <img 
+                  src= {minhaImagem}
+                  alt="NutriAI Logo" 
+                  className="h-10 w-auto"
+                />
+                <h1 className="text-xl font-bold text-green-600">NutriAI</h1>
+              </div>
+              <span className="text-sm text-slate-600">|</span>
+              <div className="flex items-center gap-2">
+                <User size={18} className="text-slate-600" />
+                <span className="text-sm text-slate-700">{userEmail}</span>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setMostrarConfiguracoes(true)}
+                className="p-2 rounded-lg hover:bg-slate-100 transition-colors"
+                title="Configurações"
+              >
+                <Settings size={20} className="text-slate-600" />
+              </button>
+              <button
+                onClick={handleLogout}
+                className="px-4 py-2 bg-red-500 text-white rounded-lg hover:bg-red-600 font-medium transition-colors"
+              >
+                Sair
+              </button>
+            </div>
+          </div>
+
+          {/* Navegação por abas */}
+          <nav className="flex flex-wrap gap-2 justify-center mt-4">
+            <Tab label="Início" id="inicio" active={activeTab} onClick={setActiveTab} icon={User} />
+            <Tab label="Dúvidas" id="duvidas" active={activeTab} onClick={setActiveTab} icon={HelpCircle} />
+            <Tab label="Progresso" id="progresso" active={activeTab} onClick={setActiveTab} icon={TrendingUp} />
+            <Tab label="Informações" id="informacoes" active={activeTab} onClick={setActiveTab} icon={FileText} />
+            <Tab label="Nutricionista" id="nutricionista" active={activeTab} onClick={setActiveTab} icon={Users} />
+            <Tab label="Dieta" id="dieta" active={activeTab} onClick={setActiveTab} icon={Utensils} />
+          </nav>
+        </div>
+      </header>
+
+      {/* Conteúdo Principal */}
+      <main className="max-w-6xl mx-auto p-4">
+        {activeTab === "inicio" && (
+          <InicioPanel
+            onAbrirQuestionario={() => setMostrarQuestionario(true)}
+            questionarioPreenchido={!!questionario}
+          />
+        )}
+        {activeTab === "duvidas" && <DuvidasPanel />}
+        {activeTab === "progresso" && <ProgressoPanel />}
+        {activeTab === "informacoes" && <InformacoesPanel />}
+        {activeTab === "nutricionista" && (
+          <NutricionistaPanel
+            nutricionistas={nutricionistas}
+            onAbrirCadastro={() => setMostrarCadastroNutri(true)}
+          />
+        )}
+        {activeTab === "dieta" && (
+          <DietaPanel
+            dietaGerada={dietaGerada}
+            onGerarDieta={handleGerarDieta}
+          />
+        )}
+      </main>
+
+      {/* Footer */}
+      <footer className="max-w-6xl mx-auto p-4 text-sm text-slate-600 text-center mt-8">
+        <div>© {new Date().getFullYear()} NutriAI - Seu assistente nutricional inteligente</div>
+      </footer>
+
+      {/* Camadas Modais */}
+      {mostrarQuestionario && (
+        <QuestionarioLayer
+          onClose={() => setMostrarQuestionario(false)}
+          onSubmit={handleSubmitQuestionario}
+          questionarioExistente={questionario}
+        />
+      )}
+
+      {mostrarConfiguracoes && (
+        <ConfiguracoesLayer
+          onClose={() => setMostrarConfiguracoes(false)}
+          userEmail={userEmail}
+        />
+      )}
+
+      {mostrarCadastroNutri && (
+        <CadastroNutricionistaLayer
+          onClose={() => setMostrarCadastroNutri(false)}
+          onCadastrar={handleCadastrarNutri}
+        />
+      )}
+    </div>
+  );
+}
